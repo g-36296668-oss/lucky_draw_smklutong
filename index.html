@@ -47,6 +47,12 @@ textarea{width:100%;font:inherit;font-size:14px;border:1px solid #d3d1c7;border-
 input[type=number]{font:inherit;width:70px;padding:6px;border:1px solid #d3d1c7;border-radius:8px}
 .err{color:#A32D2D;font-size:13px;min-height:18px;margin-top:4px}
 #hist{font-size:14px;line-height:1.7;margin-top:6px;white-space:pre-line}
+.fsbar{display:none;position:absolute;right:2.5%;bottom:3%;z-index:3;gap:1cqw;align-items:center}
+#stage:fullscreen .fsbar{display:flex}
+#stage:-webkit-full-screen .fsbar{display:flex}
+.fsbar button{font-family:"Gochi Hand",cursive;font-size:2.1cqw;min-height:0;padding:.5cqw 2cqw;border-radius:5cqw;border:.25cqw dashed #0C447C}
+.fsbar #go2{background:#185FA5;color:#fff}
+.fsbar #fsx{font-size:1.5cqw;background:#fff;color:#5f5e5a;border-color:#B4B2A9}
 </style>
 </head>
 <body>
@@ -60,6 +66,7 @@ input[type=number]{font:inherit;width:70px;padding:6px;border:1px solid #d3d1c7;
     <canvas id="gl"></canvas>
     <div class="finish"><span>FINISH</span></div>
     <div class="title"><div class="t1" id="tt"></div><div class="status" id="st">Masukkan nama untuk mula</div></div>
+    <div class="fsbar"><button id="go2">&#9992; Lancar kapal terbang</button><button id="fsx">Keluar skrin penuh</button></div>
     <div id="board"><h3>Pemenang <small id="bsub"></small></h3><ol id="blist"></ol><div class="empty" id="bempty">Nama pemenang akan muncul di sini</div></div>
   </div></div>
 
@@ -201,7 +208,7 @@ function finish(){
   count();
   $('hist').textContent=allW.map((n,i)=>(i+1)+'. '+n).join('\n');$('hist').classList.remove('muted');
   $('st').textContent='Tahniah! Baki '+lines().length+' nama';
-  $('go').textContent='Pusingan seterusnya';
+  setGo('Pusingan seterusnya');
 }
 $('names').addEventListener('input',()=>{$('err').textContent='';if(!running){setup();ready();}});
 $('nw').addEventListener('input',()=>{$('err').textContent='';});
@@ -215,7 +222,10 @@ $('go').onclick=()=>{
   round++;running=true;$('st').textContent='Kapal terbang dilancarkan!';
 };
 $('rs').onclick=()=>{running=false;allW=[];round=0;$('hist').textContent='Belum ada';$('hist').classList.add('muted');$('err').textContent='';
-  $('go').textContent='Lancar kapal terbang';setup();ready();};
+  setGo('Lancar kapal terbang');setup();ready();};
+function setGo(x){$('go').textContent=x;$('go2').innerHTML='&#9992; '+x;}
+$('go2').onclick=()=>$('go').click();
+$('fsx').onclick=()=>{try{(document.exitFullscreen||document.webkitExitFullscreen).call(document);}catch(e){}};
 $('fs').onclick=()=>{const s=$('stage');
   try{if(document.fullscreenElement){document.exitFullscreen();}else if(s.requestFullscreen){s.requestFullscreen().catch(()=>{$('err').textContent='Skrin penuh tidak dibenarkan di sini. Cuba buka page ini dalam tab sendiri.';});}
   else if(s.webkitRequestFullscreen){s.webkitRequestFullscreen();}}catch(e){$('err').textContent='Skrin penuh tidak dibenarkan di sini.';}};
