@@ -52,6 +52,7 @@ input[type=number]{font:inherit;width:70px;padding:6px;border:1px solid #d3d1c7;
 #stage:-webkit-full-screen .fsbar{display:flex}
 .fsbar button{font-family:"Gochi Hand",cursive;font-size:2.1cqw;min-height:0;padding:.5cqw 2cqw;border-radius:5cqw;border:.25cqw dashed #0C447C}
 .fsbar #go2{background:#185FA5;color:#fff}
+.fsbar #mu2{font-size:1.8cqw;background:#fff;color:#185FA5;padding:.4cqw 1.2cqw}
 .fsbar #fsx{font-size:1.5cqw;background:#fff;color:#5f5e5a;border-color:#B4B2A9}
 </style>
 </head>
@@ -66,13 +67,14 @@ input[type=number]{font:inherit;width:70px;padding:6px;border:1px solid #d3d1c7;
     <canvas id="gl"></canvas>
     <div class="finish"><span>FINISH</span></div>
     <div class="title"><div class="t1" id="tt"></div><div class="status" id="st">Masukkan nama untuk mula</div></div>
-    <div class="fsbar"><button id="go2">&#9992; Lancar kapal terbang</button><button id="fsx">Keluar skrin penuh</button></div>
+    <div class="fsbar"><button id="go2">&#9992; Lancar kapal terbang</button><button id="mu2" aria-label="Muzik hidup atau mati">&#128266;</button><button id="fsx">Keluar skrin penuh</button></div>
     <div id="board"><h3>Pemenang <small id="bsub"></small></h3><ol id="blist"></ol><div class="empty" id="bempty">Nama pemenang akan muncul di sini</div></div>
   </div></div>
 
   <div class="bar">
     <button class="main" id="go">Lancar kapal terbang</button>
     <button id="fs">Skrin penuh</button>
+    <button id="mu">&#128266; Muzik: Hidup</button>
     <button id="rs">Set semula</button>
   </div>
   <div class="err" id="err"></div>
@@ -177,7 +179,7 @@ function step(){
     if(p.done){toGate(p);return;}
     p.v+=(rnd()-0.5)*0.22;if(rnd()<0.004)p.v+=0.9;p.v=Math.max(0.35,Math.min(2.1,p.v));
     p.sx-=p.v*p.base*unit;
-    if(p.sx<=FINX){p.done=true;if(fin.length<K){fin.push(p);showWins();}}
+    if(p.sx<=FINX){p.done=true;if(fin.length<K){fin.push(p);showWins();ding(fin.length-1);}}
   });
   if(fin.length>=Math.min(K,P.length)){running=false;finish();}
 }
@@ -208,7 +210,7 @@ function finish(){
   count();
   $('hist').textContent=allW.map((n,i)=>(i+1)+'. '+n).join('\n');$('hist').classList.remove('muted');
   $('st').textContent='Tahniah! Baki '+lines().length+' nama';
-  setGo('Pusingan seterusnya');
+  setGo('Pusingan seterusnya');stopMusic();fanfare();
 }
 $('names').addEventListener('input',()=>{$('err').textContent='';if(!running){setup();ready();}});
 $('nw').addEventListener('input',()=>{$('err').textContent='';});
@@ -219,9 +221,9 @@ $('go').onclick=()=>{
   if(!nw||nw<1){$('err').textContent='Masukkan bilangan pemenang.';return;}
   K=Math.min(nw,lines().length);setup();
   $('err').textContent=K<nw?'Hanya tinggal '+K+' nama, jadi '+K+' pemenang.':'';
-  round++;running=true;$('st').textContent='Kapal terbang dilancarkan!';
+  round++;running=true;$('st').textContent='Kapal terbang dilancarkan!';whoosh();startMusic();
 };
-$('rs').onclick=()=>{running=false;allW=[];round=0;$('hist').textContent='Belum ada';$('hist').classList.add('muted');$('err').textContent='';
+$('rs').onclick=()=>{running=false;stopMusic();allW=[];round=0;$('hist').textContent='Belum ada';$('hist').classList.add('muted');$('err').textContent='';
   setGo('Lancar kapal terbang');setup();ready();};
 function setGo(x){$('go').textContent=x;$('go2').innerHTML='&#9992; '+x;}
 $('go2').onclick=()=>$('go').click();
@@ -234,6 +236,45 @@ document.addEventListener('keydown',e=>{const tg=document.activeElement.tagName;
 $('cp').onclick=()=>{const txt=allW.map((n,i)=>(i+1)+'. '+n).join('\n');
   if(!txt){$('err').textContent='Belum ada pemenang untuk disalin.';return;}
   navigator.clipboard.writeText(txt).then(()=>{$('cp').textContent='Disalin';setTimeout(()=>$('cp').textContent='Salin senarai pemenang',1500);}).catch(()=>{$('err').textContent='Tidak dapat salin. Pilih dan salin senarai secara manual.';});};
+
+/*audio*/
+let AC=null,master=null,musicOn=true,seqT=null,nextT=0,stepN=0,noiseBuf=null;
+try{musicOn=localStorage.getItem('cb_music')!=='off';}catch(e){}
+function ac(){
+  if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();master=AC.createGain();master.gain.value=musicOn?0.55:0;master.connect(AC.destination);
+    noiseBuf=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}
+  if(AC.state==='suspended')AC.resume();return AC;}
+const mf=m=>440*Math.pow(2,(m-69)/12);
+function tone(f,t,dur,type,vol,lp){const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  if(lp){const fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=lp;o.connect(fl);fl.connect(g);}else o.connect(g);
+  g.connect(master);o.start(t);o.stop(t+dur+0.05);}
+function noise(t,dur,vol,type,freq){const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=noiseBuf;f.type=type;f.frequency.value=freq;
+  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t);s.stop(t+dur+0.05);return f;}
+const CH=[[60,64,67],[55,59,62],[57,60,64],[53,57,60]],BS=[48,43,45,41];
+const MEL=[[72,76,79,76,74,76,72,-1],[71,74,79,74,72,71,67,-1],[69,72,76,72,74,76,79,-1],[77,76,74,72,74,76,72,-1]];
+const SX=0.1;
+function sched(){
+  while(nextT<AC.currentTime+0.15){const s=stepN%64,bar=s>>4,b=s%16,t=nextT;
+    if(b%4===0)tone(mf(BS[bar]),t,0.22,'triangle',0.32);
+    if(b===4||b===12)CH[bar].forEach(m=>tone(mf(m),t,0.14,'square',0.035,2200));
+    if(b%2===0){noise(t,0.04,b%4===2?0.12:0.06,'highpass',7000);const m=MEL[bar][b/2];if(m>0){tone(mf(m),t,0.18,'triangle',0.16);tone(mf(m+12),t,0.08,'sine',0.05);}}
+    if(b===0||b===8)noise(t,0.12,0.25,'lowpass',180);
+    nextT+=SX;stepN++;}
+}
+function startMusic(){if(!musicOn||!ac())return;stopMusic();nextT=AC.currentTime+0.05;stepN=0;sched();seqT=setInterval(sched,25);}
+function stopMusic(){if(seqT){clearInterval(seqT);seqT=null;}}
+function whoosh(){if(!musicOn||!ac())return;const t=AC.currentTime,f=noise(t,0.7,0.35,'bandpass',400);f.frequency.exponentialRampToValueAtTime(3000,t+0.6);}
+function ding(i){if(!musicOn||!ac())return;const t=AC.currentTime,f=mf(84+[0,2,4,5,7,9,11,12,14,16,17,19][i%12]);tone(f,t,0.7,'sine',0.25);tone(f*2,t,0.35,'sine',0.08);}
+function fanfare(){if(!musicOn||!ac())return;const t=AC.currentTime+0.1;
+  [72,76,79].forEach((m,i)=>tone(mf(m),t+i*0.12,0.2,'sawtooth',0.1,2500));
+  [72,76,79,84].forEach(m=>tone(mf(m),t+0.42,1.4,'sawtooth',0.07,2200));tone(mf(48),t+0.42,1.4,'triangle',0.3);
+  for(let i=0;i<6;i++)noise(t+0.42+i*0.05,0.08,0.15,'lowpass',200);}
+function setMusic(on){musicOn=on;try{localStorage.setItem('cb_music',on?'on':'off');}catch(e){}
+  if(master)master.gain.value=on?0.55:0;if(!on)stopMusic();else if(running)startMusic();
+  const lab=on?'&#128266; Muzik: Hidup':'&#128263; Muzik: Mati';$('mu').innerHTML=lab;$('mu2').innerHTML=on?'&#128266;':'&#128263;';}
+$('mu').onclick=$('mu2').onclick=()=>{ac();setMusic(!musicOn);};
+setMusic(musicOn);
 setup();ready();loop();
 </script>
 </body>
